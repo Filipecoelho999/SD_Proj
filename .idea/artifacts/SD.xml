@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="SD">
+    <output-path>$PROJECT_DIR$/out/artifacts/SD</output-path>
+    <root id="archive" name="SD.jar">
+      <element id="module-output" name="SD" />
+      <element id="library" level="project" name="lib" />
+    </root>
+  </artifact>
+</component>
