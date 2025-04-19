@@ -4,7 +4,7 @@ import edu.ufp.inf.sd.rmi.drive.model.*;
 
 public class WorkspaceTest {
     public static void main(String[] args) {
-        Workspace workspace = new Workspace("joana");
+        Workspace workspace = new Workspace("joana", null);
 
         Folder local = workspace.getLocalFolder();
         local.addFile(new FileObject("fatura.pdf", "conteúdo"));

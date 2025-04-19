@@ -1,5 +1,7 @@
 package edu.ufp.inf.sd.rmi.drive.model;
 
+import edu.ufp.inf.sd.rmi.drive.server.SubjectRI;
+
 import java.io.Serializable;
 
 public class User implements Serializable {
@@ -7,10 +9,10 @@ public class User implements Serializable {
     private String password;
     private Workspace workspace;
 
-    public User(String username, String password) {
+    public User(String username, String password, SubjectRI subject) {
         this.username = username;
         this.password = password;
-        this.workspace = new Workspace(username);
+        this.workspace = new Workspace(username, subject);
     }
 
     public String getUsername() {

@@ -11,16 +11,24 @@ set OUT_DIR=C:\SD_proj\out\production\SD
 
 echo Compilando ficheiros Java...
 
-javac -d %OUT_DIR% ^
-     ..\client\MainClient.java ^
-        ..\server\AuthImpl.java ^
-        ..\server\AuthRI.java ^
-        ..\server\MainServer.java ^
-        ..\model\UserStore.java ^
-        ..\model\User.java ^
-        ..\model\Workspace.java ^
-        ..\model\Folder.java ^
-        ..\model\FileObject.java
+javac -encoding UTF-8 ^
+ -cp ".;C:\Users\Utilizador\Desktop\uni2\SDProj\lib\amqp-client-5.24.0.jar;C:\Users\Utilizador\Desktop\uni2\SDProj\lib\slf4j-api-1.7.30.jar;C:\Users\Utilizador\Desktop\uni2\SDProj\lib\slf4j-simple-1.7.30.jar" ^
+ -d %OUT_DIR% ^
+    ..\client\MainClient.java ^
+    ..\client\ClienteNotificador.java ^
+    ..\client\ObserverImpl.java ^
+    ..\client\ObserverRI.java ^
+    ..\server\AuthImpl.java ^
+    ..\server\AuthRI.java ^
+    ..\server\MainServer.java ^
+    ..\server\SubjectRI.java ^
+    ..\model\User.java ^
+    ..\model\UserStore.java ^
+    ..\model\Workspace.java ^
+    ..\model\Folder.java ^
+    ..\model\FileObject.java ^
+    ..\..\..\rabbitmqservices\util\RabbitUtils.java
+
 
 if %errorlevel% neq 0 (
     echo Erro ao compilar.
@@ -32,12 +40,9 @@ echo ================================
 echo Iniciando rmiregistry...
 echo ================================
 
-:: Lançar rmiregistry no background do terminal (sem abrir nova janela)
 cd /d %OUT_DIR%
 start /b "C:\Program Files\Java\jdk-21\bin\rmiregistry.exe"
 
-
-:: Espera 2 segundos (sem usar timeout)
 ping 127.0.0.1 -n 3 > nul
 
 echo ================================

@@ -1,17 +1,28 @@
 package edu.ufp.inf.sd.rmi.drive.model;
 
+import edu.ufp.inf.sd.rabbitmqservices.util.RabbitUtils;
+import edu.ufp.inf.sd.rmi.drive.server.SubjectRI;
+
 import java.io.Serializable;
+import java.rmi.RemoteException;
 import java.util.Collections;
 import java.util.List;
 
 public class Workspace implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private Folder local;
     private Folder shared;
+    private final String username;
+    private final SubjectRI subject;
 
-    public Workspace(String userName) {
-        this.local = new Folder("local_" + userName);
-        this.shared = new Folder("shared_" + userName);
+    public Workspace(String username, SubjectRI subject) {
+        this.username = username;
+        this.subject = subject;
+        this.local = new Folder("local_" + username);
+        this.shared = new Folder("shared_" + username);
     }
+
 
     public Folder getLocalFolder() {
         return local;
@@ -25,6 +36,7 @@ public class Workspace implements Serializable {
         Folder target = getTargetFolder(path, isShared);
         if (target != null) {
             target.addSubFolder(new Folder(folderName));
+            notifyAll(username + " criou a pasta: " + path + "/" + folderName);
             return true;
         }
         return false;
@@ -34,6 +46,7 @@ public class Workspace implements Serializable {
         Folder target = getTargetFolder(path, isShared);
         if (target != null) {
             target.addFile(new FileObject(fileName, content));
+            notifyAll(username + " criou o ficheiro: " + path + "/" + fileName);
             return true;
         }
         return false;
@@ -42,11 +55,60 @@ public class Workspace implements Serializable {
     public boolean delete(String path, String name, boolean isFolder, boolean isShared) {
         Folder target = getTargetFolder(path, isShared);
         if (target != null) {
+            String tipo = isFolder ? "pasta" : "ficheiro";
+            String fullPath = path + "/" + name;
+
             if (isFolder) target.removeSubFolder(name);
             else target.removeFile(name);
+
+            notifyAll(username + " apagou o " + tipo + ": " + fullPath);
             return true;
         }
         return false;
+    }
+
+    public boolean rename(String path, String oldName, String newName, boolean isFolder, boolean isShared) {
+        Folder target = getTargetFolder(path, isShared);
+        if (target == null) return false;
+
+        if (isFolder) {
+            Folder folder = target.getSubFolder(oldName);
+            if (folder == null) return false;
+            target.removeSubFolder(oldName);
+            folder = new Folder(newName);
+            target.addSubFolder(folder);
+            notifyAll(username + " renomeou a pasta: " + oldName + " para " + newName);
+        } else {
+            FileObject file = target.getFile(oldName);
+            if (file == null) return false;
+            target.removeFile(oldName);
+            file = new FileObject(newName, file.getContent());
+            target.addFile(file);
+            notifyAll(username + " renomeou o ficheiro: " + oldName + " para " + newName);
+        }
+        return true;
+    }
+
+    public boolean move(String sourcePath, String name, String destPath, boolean isFolder, boolean isShared) {
+        Folder source = getTargetFolder(sourcePath, isShared);
+        Folder dest = getTargetFolder(destPath, isShared);
+
+        if (source == null || dest == null) return false;
+
+        if (isFolder) {
+            Folder folder = source.getSubFolder(name);
+            if (folder == null) return false;
+            source.removeSubFolder(name);
+            dest.addSubFolder(folder);
+            notifyAll(username + " moveu a pasta: " + name + " de " + sourcePath + " para " + destPath);
+        } else {
+            FileObject file = source.getFile(name);
+            if (file == null) return false;
+            source.removeFile(name);
+            dest.addFile(file);
+            notifyAll(username + " moveu o ficheiro: " + name + " de " + sourcePath + " para " + destPath);
+        }
+        return true;
     }
 
     public List<String> list(String path, boolean isShared) {
@@ -67,44 +129,15 @@ public class Workspace implements Serializable {
         }
         return current;
     }
-    public boolean rename(String path, String oldName, String newName, boolean isFolder, boolean isShared) {
-        Folder target = getTargetFolder(path, isShared);
-        if (target == null) return false;
 
-        if (isFolder) {
-            Folder folder = target.getSubFolder(oldName);
-            if (folder == null) return false;
-            target.removeSubFolder(oldName);
-            folder = new Folder(newName); // novo objeto com novo nome
-            target.addSubFolder(folder);
-        } else {
-            FileObject file = target.getFile(oldName);
-            if (file == null) return false;
-            target.removeFile(oldName);
-            file = new FileObject(newName, file.getContent());
-            target.addFile(file);
+    private void notifyAll(String message) {
+        try {
+            if (subject != null) {
+                subject.notifyObservers(message); // RMI
+            }
+            RabbitUtils.publish("[RabbitMQ] " + message); // RabbitMQ
+        } catch (RemoteException e) {
+            System.err.println("Erro ao notificar por RMI: " + e.getMessage());
         }
-        return true;
     }
-    public boolean move(String sourcePath, String name, String destPath, boolean isFolder, boolean isShared) {
-        Folder source = getTargetFolder(sourcePath, isShared);
-        Folder dest = getTargetFolder(destPath, isShared);
-
-        if (source == null || dest == null) return false;
-
-        if (isFolder) {
-            Folder folder = source.getSubFolder(name);
-            if (folder == null) return false;
-            source.removeSubFolder(name);
-            dest.addSubFolder(folder);
-        } else {
-            FileObject file = source.getFile(name);
-            if (file == null) return false;
-            source.removeFile(name);
-            dest.addFile(file);
-        }
-        return true;
-    }
-
-
 }
