@@ -4,19 +4,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class UserStore {
-
-    private Map<String, String> users = new HashMap<>();
-
+    private Map<String, User> users = new HashMap<>();
 
     public boolean register(String username, String password) {
-        if (users.containsKey(username)) {
-            return false; // User already exists
-        }
-        users.put(username, password);
-        return true; // Registration successful
+        if (users.containsKey(username)) return false;
+        users.put(username, new User(username, password));
+        return true;
     }
 
-    public boolean login(String username, String password) {
-        return users.containsKey(username) && users.get(username).equals(password);
+    public User login(String username, String password) {
+        User user = users.get(username);
+        if (user != null && user.checkPassword(password)) {
+            return user;
+        }
+        return null;
     }
 }

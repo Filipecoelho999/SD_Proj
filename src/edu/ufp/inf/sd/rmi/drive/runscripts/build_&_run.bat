@@ -12,11 +12,15 @@ set OUT_DIR=C:\SD_proj\out\production\SD
 echo Compilando ficheiros Java...
 
 javac -d %OUT_DIR% ^
-    ..\client\MainClient.java ^
-    ..\server\AuthImpl.java ^
-    ..\server\AuthRI.java ^
-    ..\server\MainServer.java ^
-    ..\model\UserStore.java
+     ..\client\MainClient.java ^
+        ..\server\AuthImpl.java ^
+        ..\server\AuthRI.java ^
+        ..\server\MainServer.java ^
+        ..\model\UserStore.java ^
+        ..\model\User.java ^
+        ..\model\Workspace.java ^
+        ..\model\Folder.java ^
+        ..\model\FileObject.java
 
 if %errorlevel% neq 0 (
     echo Erro ao compilar.
