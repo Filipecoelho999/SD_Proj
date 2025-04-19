@@ -1,5 +1,4 @@
 package edu.ufp.inf.sd.rabbitmqservices.test;
-
 import edu.ufp.inf.sd.rabbitmqservices.util.RabbitUtils;
 import edu.ufp.inf.sd.rmi.drive.model.Workspace;
 
@@ -16,6 +15,6 @@ public class MainClientRabbitOnly {
         ws.move("/docs", "curriculum.txt", "/", false, false);
         ws.delete("/", "curriculum.txt", false, false);
 
-        System.out.println("✅ Teste RabbitMQ concluído.");
+        System.out.println("Teste RabbitMQ concluído.");
     }
 }
