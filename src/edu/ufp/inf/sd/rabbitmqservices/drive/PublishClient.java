@@ -16,7 +16,7 @@ public class PublishClient {
             try (Connection connection = factory.newConnection(); Channel channel = connection.createChannel()) {
 
                 // Tipo "topic" permite routing por chave
-                channel.exchangeDeclare(EXCHANGE_NAME, "topic");
+                channel.exchangeDeclare(EXCHANGE_NAME, "topic", true);
 
                 String message = "[RabbitMQ] Ficheiro criado em /docs/cv.txt";
                 channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, message.getBytes());
@@ -25,6 +25,7 @@ public class PublishClient {
             }
         } catch (Exception e) {
             System.err.println("Erro ao publicar: " + e.getMessage());
+            e.printStackTrace(); // <-- Adicionado para mostrar detalhes reais
         }
     }
 }

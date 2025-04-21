@@ -22,6 +22,9 @@ public class Workspace implements Serializable {
         this.local = new Folder("local_" + username);
         this.shared = new Folder("shared_" + username);
     }
+    public String getUsername() {
+        return this.username;
+    }
 
 
     public Folder getLocalFolder() {
@@ -139,4 +142,5 @@ public class Workspace implements Serializable {
             System.err.println("Erro ao notificar por RMI: " + e.getMessage());
         }
     }
+
 }

@@ -7,7 +7,7 @@ public class MainClientRabbitOnly {
         System.out.println("=== Teste RabbitMQ sem RMI ===");
 
         // Workspace dummy sem subject
-        Workspace ws = new Workspace("joana", null);
+        Workspace ws = new WorkspaceRabbit("joana");
 
         ws.createFolder("/", "docs", false);
         ws.createFile("/docs", "cv.txt", "conteudo", false);
