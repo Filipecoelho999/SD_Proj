@@ -1,6 +1,6 @@
 package edu.ufp.inf.sd.rmi.drive.model;
 
-import edu.ufp.inf.sd.rabbitmqservices.util.RabbitUtils;
+
 import edu.ufp.inf.sd.rmi.drive.server.SubjectRI;
 
 import java.io.Serializable;
@@ -135,7 +135,6 @@ public class Workspace implements Serializable {
             if (subject != null) {
                 subject.notifyObservers(message); // RMI
             }
-            RabbitUtils.publish("[RabbitMQ] " + message); // RabbitMQ
         } catch (RemoteException e) {
             System.err.println("Erro ao notificar por RMI: " + e.getMessage());
         }
