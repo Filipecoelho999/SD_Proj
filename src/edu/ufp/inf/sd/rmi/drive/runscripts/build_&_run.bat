@@ -14,19 +14,24 @@ echo Compilando ficheiros Java...
 javac -encoding UTF-8 ^
  -cp ".;C:\Users\Utilizador\Desktop\uni2\SDProj\lib\amqp-client-5.24.0.jar;C:\Users\Utilizador\Desktop\uni2\SDProj\lib\slf4j-api-1.7.30.jar;C:\Users\Utilizador\Desktop\uni2\SDProj\lib\slf4j-simple-1.7.30.jar" ^
  -d %OUT_DIR% ^
-    ..\client\MainClient.java ^
-    ..\client\ClienteNotificador.java ^
     ..\client\ObserverImpl.java ^
     ..\client\ObserverRI.java ^
     ..\server\AuthImpl.java ^
     ..\server\AuthRI.java ^
     ..\server\MainServer.java ^
     ..\server\SubjectRI.java ^
+    ..\server\SubjectImpl.java ^
     ..\model\User.java ^
     ..\model\UserStore.java ^
-    ..\model\Workspace.java ^
     ..\model\Folder.java ^
     ..\model\FileObject.java ^
+    ..\server\WorkspaceImpl.java ^
+    ..\server\WorkspaceRI.java ^
+    ..\server\WorkspaceFactory.java ^
+    ..\server\SubjectFactory.java ^
+    ..\server\FileManager.java ^
+    ..\server\SharedFileRegistry.java ^
+    ..\server\SharedReference.java ^
     ..\..\..\rabbitmqservices\util\RabbitUtils.java
 
 

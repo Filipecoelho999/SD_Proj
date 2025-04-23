@@ -9,4 +9,6 @@ public interface SubjectRI extends Remote {
     void attachObserver(ObserverRI observer) throws RemoteException;
     void detachObserver(ObserverRI observer) throws RemoteException;
     void notifyObservers(String message) throws RemoteException;
+    WorkspaceRI getWorkspace() throws RemoteException;
+    void setWorkspace(WorkspaceRI workspace) throws RemoteException;
 }

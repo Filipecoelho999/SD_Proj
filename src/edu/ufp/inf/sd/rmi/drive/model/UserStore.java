@@ -1,24 +1,24 @@
 package edu.ufp.inf.sd.rmi.drive.model;
 
-import edu.ufp.inf.sd.rmi.drive.server.SubjectRI;
-
 import java.util.HashMap;
 import java.util.Map;
 
 public class UserStore {
-    private Map<String, User> users = new HashMap<>();
+    private static final UserStore INSTANCE = new UserStore();
 
-    public boolean register(String username, String password, SubjectRI subject) {
-        if (users.containsKey(username)) return false;
-        users.put(username, new User(username, password, subject));
-        return true;
+    private final Map<String, User> users = new HashMap<>();
+
+    private UserStore() {}
+
+    public static UserStore getInstance() {
+        return INSTANCE;
     }
 
-    public User login(String username, String password) {
-        User user = users.get(username);
-        if (user != null && user.checkPassword(password)) {
-            return user;
-        }
-        return null;
+    public Map<String, User> getUsers() {
+        return users;
+    }
+
+    public User getUser(String username) {
+        return users.get(username);
     }
 }

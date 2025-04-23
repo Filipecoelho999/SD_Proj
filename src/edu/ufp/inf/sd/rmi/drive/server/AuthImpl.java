@@ -1,67 +1,49 @@
 package edu.ufp.inf.sd.rmi.drive.server;
 
-import edu.ufp.inf.sd.rmi.drive.client.ObserverRI;
 import edu.ufp.inf.sd.rmi.drive.model.User;
 import edu.ufp.inf.sd.rmi.drive.model.UserStore;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class AuthImpl extends UnicastRemoteObject implements AuthRI, SubjectRI {
+public class AuthImpl extends UnicastRemoteObject implements AuthRI {
 
-    private UserStore userStore;
-    private final List<ObserverRI> observers;
+    private final Map<String, User> users;
 
     public AuthImpl() throws RemoteException {
         super();
-        this.userStore = new UserStore();
-        this.observers = new ArrayList<>();
+        this.users = new ConcurrentHashMap<>();
     }
 
     @Override
-    public boolean register(String username, String password) {
-        boolean success = userStore.register(username, password, this);
-        if (success) {
-            try {
-                notifyObservers("Novo utilizador registado: " + username);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
+    public boolean register(String username, String password) throws RemoteException {
+        if (users.containsKey(username)) return false;
+
+        WorkspaceRI workspace = new WorkspaceImpl(username, null, this);
+        SubjectRI subject = new SubjectImpl(workspace);
+        workspace = new WorkspaceImpl(username, subject, this);
+        subject.setWorkspace(workspace);
+
+        User user = new User(username, password, workspace);
+        users.put(username, user);
+        UserStore.getInstance().getUsers().put(username, user); // armazena o user completo
+
+        return true;
+    }
+
+    @Override
+    public SubjectRI login(String username, String password) throws RemoteException {
+        User u = users.get(username);
+        if (u != null && u.checkPassword(password)) {
+            return u.getWorkspace().getSubject();
         }
-        return success;
+        return null;
     }
 
     @Override
-    public User login(String username, String password) {
-        return userStore.login(username, password);
-    }
-
-    // Implementação do SubjectRI
-    @Override
-    public void attachObserver(ObserverRI observer) throws RemoteException {
-        observers.add(observer);
-        System.out.println("Observador ligado: " + observer);
-    }
-
-    @Override
-    public void detachObserver(ObserverRI observer) throws RemoteException {
-        observers.remove(observer);
-        System.out.println("Observador desligado: " + observer);
-    }
-
-    @Override
-    public void notifyObservers(String message) throws RemoteException {
-        System.out.println("A notificar observadores...");
-        for (ObserverRI observer : observers) {
-            try {
-                observer.update(message);
-            } catch (RemoteException e) {
-                System.out.println("Erro ao notificar um observador. Sera removido.");
-                observers.remove(observer);
-                break;
-            }
-        }
+    public User getUser(String username) throws RemoteException {
+        return UserStore.getInstance().getUser(username);
     }
 }

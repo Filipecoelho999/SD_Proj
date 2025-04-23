@@ -47,4 +47,7 @@ public class Folder implements Serializable {
         return files.get(name);
     }
 
+    public Map<String, Folder> getSubFolders() {
+        return subFolders;
+    }
 }
