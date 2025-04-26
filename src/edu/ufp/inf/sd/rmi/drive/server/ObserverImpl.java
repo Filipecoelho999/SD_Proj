@@ -1,4 +1,4 @@
-package edu.ufp.inf.sd.rmi.drive.client;
+package edu.ufp.inf.sd.rmi.drive.server;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -14,6 +14,11 @@ public class ObserverImpl extends UnicastRemoteObject implements ObserverRI {
 
     @Override
     public void update(String message) throws RemoteException {
-        System.out.println("[Notificação para " + username + "] " + message);
+        System.out.println("Notificação recebida: " + message);
+    }
+
+    @Override
+    public String getUsername() throws RemoteException {
+        return username;
     }
 }
