@@ -61,6 +61,8 @@ public class DriveClient {
                             fileManager.setMyObserver(observer);
                             System.out.println("Login com sucesso! Bem-vindo, " + username);
                             loggedIn = true;
+                            // 🚀 Iniciar o Consumer RabbitMQ numa nova thread
+                            new Thread(() -> edu.ufp.inf.sd.rmi.drive.rabbitmq.Consumer.start()).start();
                         } else {
                             System.out.println("Login falhou!");
                         }
@@ -123,6 +125,30 @@ public class DriveClient {
                             }
                         }
                         break;
+                    case "delete":
+                        if (parts.length < 2) {
+                            System.out.println("Uso: delete <caminho>");
+                        } else {
+                            if (fileManager.delete(buildPath(parts[1]))) {
+                                System.out.println("Deletado!");
+                            } else {
+                                System.out.println("Erro ao deletar.");
+                            }
+                        }
+                        break;
+
+                    case "move":
+                        if (parts.length < 3) {
+                            System.out.println("Uso: move <origem> <destino>");
+                        } else {
+                            if (fileManager.move(buildPath(parts[1]), buildPath(parts[2]))) {
+                                System.out.println("Movido!");
+                            } else {
+                                System.out.println("Erro ao mover.");
+                            }
+                        }
+                        break;
+
 
 
                     case "sharedwithme":
@@ -154,7 +180,7 @@ public class DriveClient {
                         break;
                     case "ajuda":
                         System.out.println("""
-                                📜 Comandos disponíveis:
+                                 Comandos disponíveis:
                                  - mkdir <nome_pasta>        ➔ Criar nova pasta (apenas no seu drive)
                                  - upload <ficheiro>         ➔ Fazer upload de um ficheiro
                                  - rename <antigo> <novo>    ➔ Renomear ficheiro ou pasta
@@ -164,6 +190,9 @@ public class DriveClient {
                                  - share <pasta> <destinatario> ➔ Partilhar pasta
                                  - sharedwithme              ➔ Listar pastas partilhadas contigo
                                  - entershared <utilizador>  ➔ Aceder as pastas partilhadas
+                                 - unshare <pasta> <utilizador> ➔ Remover partilha
+                                 - delete <caminho>         ➔ Deletar ficheiro ou pasta
+                                 - move <origem> <destino>   ➔ Mover ficheiro ou pasta
                                  - logout                    ➔ Terminar sessao
                                  - ajuda                     ➔ Mostrar esta ajuda
                                 """);

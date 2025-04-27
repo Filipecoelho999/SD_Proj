@@ -16,4 +16,7 @@ public interface FileManagerRI extends Remote {
     String readFile(String path, String filename) throws RemoteException;
     void setMyObserver(ObserverRI observer) throws RemoteException;
     boolean unshareFolder(String folderName, String targetUser) throws RemoteException;
+    boolean delete(String path) throws RemoteException;
+    boolean move(String sourcePath, String destPath) throws RemoteException;
+
 }

@@ -1,12 +1,12 @@
 package edu.ufp.inf.sd.rmi.drive.server;
 
+import edu.ufp.inf.sd.rmi.drive.rabbitmq.Publisher;
 import java.io.IOException;
 import java.nio.file.*;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
@@ -14,7 +14,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
     private final SubjectRI subject;
     private final AuthRI auth;
     private final String ownerUsername;
-    private ObserverRI myObserver; // NOVO!
+    private ObserverRI myObserver;
 
     public FileManager(String username, AuthRI auth) throws RemoteException {
         super();
@@ -35,6 +35,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             Path folderPath = basePath.resolve(folderName);
             Files.createDirectories(folderPath);
             subject.notifyObservers("Pasta criada: " + folderName);
+            Publisher.publish("Pasta criada: " + folderName); // RabbitMQ publish
             return true;
         } catch (IOException e) {
             e.printStackTrace();
@@ -50,6 +51,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             Path filePath = folderPath.resolve(fileName);
             Files.writeString(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             subject.notifyObservers("Ficheiro criado: " + folderName + "/" + fileName);
+            Publisher.publish("Ficheiro enviado: " + folderName + "/" + fileName); // RabbitMQ publish
             return true;
         } catch (IOException e) {
             e.printStackTrace();
@@ -75,6 +77,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
         return fileList;
     }
+
     @Override
     public String readFile(String path, String filename) throws RemoteException {
         try {
@@ -97,12 +100,58 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             Path newPath = basePath.resolve(folderName).resolve(newName);
             Files.move(oldPath, newPath);
             subject.notifyObservers("Renomeado: " + oldName + " para " + newName);
+            Publisher.publish("Renomeado: " + oldName + " para " + newName); // RabbitMQ publish
             return true;
         } catch (IOException e) {
             e.printStackTrace();
             return false;
         }
     }
+    @Override
+    public boolean delete(String path) throws RemoteException {
+        try {
+            Path targetPath = basePath.resolve(path);
+            if (Files.exists(targetPath)) {
+                if (Files.isDirectory(targetPath)) {
+                    Files.walk(targetPath)
+                            .sorted((a, b) -> b.compareTo(a)) // Deletar subpastas primeiro
+                            .forEach(p -> {
+                                try {
+                                    Files.delete(p);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            });
+                } else {
+                    Files.delete(targetPath);
+                }
+                subject.notifyObservers("Deleted: " + path);
+                Publisher.publish("Deleted: " + path);
+                return true;
+            }
+            return false;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean move(String sourcePath, String destPath) throws RemoteException {
+        try {
+            Path source = basePath.resolve(sourcePath);
+            Path destination = basePath.resolve(destPath).resolve(source.getFileName());
+            Files.createDirectories(basePath.resolve(destPath)); // Garante que a pasta destino existe
+            Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING);
+            subject.notifyObservers("Movido: " + sourcePath + " para " + destPath);
+            Publisher.publish("Movido: " + sourcePath + " para " + destPath);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 
     @Override
     public boolean shareFolder(String folderName, String targetUser) throws RemoteException {
@@ -115,11 +164,28 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
                     observer.update("Recebeste uma nova partilha: " + folderName + " de " + ownerUsername);
                 }
             }
+            Publisher.publish("Partilha criada: " + folderName + " para " + targetUser); // RabbitMQ publish
             return true;
         }
         return false;
     }
 
+    @Override
+    public boolean unshareFolder(String folderName, String targetUser) throws RemoteException {
+        boolean removida = auth.removerPartilha(targetUser, folderName);
+        if (removida) {
+            FileManagerRI targetDrive = auth.getDrive(targetUser);
+            if (targetDrive != null) {
+                SubjectRI subjectTarget = targetDrive.getSubject();
+                for (ObserverRI observer : subjectTarget.getObservers().values()) {
+                    observer.update("Partilha removida: " + folderName + " de " + ownerUsername);
+                }
+            }
+            Publisher.publish("Partilha removida: " + folderName + " de " + ownerUsername); // RabbitMQ publish
+            return true;
+        }
+        return false;
+    }
 
     @Override
     public List<String> getSharedWithMe(String myUsername) throws RemoteException {
@@ -136,21 +202,6 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             System.out.println("Observer adicionado ao dono: " + ownerUsername);
         }
         return true;
-    }
-    @Override
-    public boolean unshareFolder(String folderName, String targetUser) throws RemoteException {
-        boolean removida = auth.removerPartilha(targetUser, folderName);
-        if (removida) {
-            FileManagerRI targetDrive = auth.getDrive(targetUser);
-            if (targetDrive != null) {
-                SubjectRI subjectTarget = targetDrive.getSubject();
-                for (ObserverRI observer : subjectTarget.getObservers().values()) {
-                    observer.update("🔒 Partilha removida: " + folderName + " de " + ownerUsername);
-                }
-            }
-            return true;
-        }
-        return false;
     }
 
     @Override
