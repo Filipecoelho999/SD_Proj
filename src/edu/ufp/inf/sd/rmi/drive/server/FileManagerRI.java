@@ -11,6 +11,7 @@ public interface FileManagerRI extends Remote {
     boolean rename(String path, String oldName, String newName) throws RemoteException;
     List<String> list(String path) throws RemoteException;
     boolean shareFolder(String folderName, String targetUser) throws RemoteException;
+    boolean shareFolder(String folderName, String targetUser, String permissao) throws RemoteException;
     List<String> getSharedWithMe(String myUsername) throws RemoteException;
     boolean enterShared(String username) throws RemoteException;
     String readFile(String path, String filename) throws RemoteException;

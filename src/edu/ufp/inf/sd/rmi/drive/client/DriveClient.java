@@ -1,5 +1,6 @@
 package edu.ufp.inf.sd.rmi.drive.client;
 
+import edu.ufp.inf.sd.rmi.drive.rabbitmq.Consumer;
 import edu.ufp.inf.sd.rmi.drive.server.AuthRI;
 import edu.ufp.inf.sd.rmi.drive.server.FileManagerRI;
 import edu.ufp.inf.sd.rmi.drive.server.ObserverRI;
@@ -59,10 +60,11 @@ public class DriveClient {
 
                         if (fileManager != null) {
                             fileManager.setMyObserver(observer);
+                            fileManager.getSubject().attachObserver(observer); // <--- ESSENCIAL
                             System.out.println("Login com sucesso! Bem-vindo, " + username);
                             loggedIn = true;
-                            // 🚀 Iniciar o Consumer RabbitMQ numa nova thread
-                            new Thread(() -> edu.ufp.inf.sd.rmi.drive.rabbitmq.Consumer.start()).start();
+                            Consumer.currentUser = username;
+                            new Thread(() -> Consumer.start()).start();
                         } else {
                             System.out.println("Login falhou!");
                         }
@@ -86,11 +88,7 @@ public class DriveClient {
                     case "mkdir":
                     case "upload":
                     case "rename":
-                        if (inShared) {
-                            System.out.println("Nao podes modificar uma partilha!");
-                        } else {
-                            tratarComandosDeEscrita(command, parts, scanner);
-                        }
+                        tratarComandosDeEscrita(command, parts, scanner);
                         break;
                     case "ls":
                         tratarLs(parts);
@@ -103,11 +101,17 @@ public class DriveClient {
                         break;
                     case "share":
                         if (parts.length < 3) {
-                            System.out.println("Uso: share <pasta> <destinatario>");
+                            System.out.println("Uso: share <pasta> <destinatario> [permissao]");
                         } else {
                             String path = buildPath(parts[1]);
-                            if (fileManager.shareFolder(path, parts[2])) {
-                                System.out.println("Pasta partilhada!");
+                            String destinatario = parts[2];
+                            String permissao = (parts.length >= 4) ? parts[3].toLowerCase() : "read";
+                            if (!permissao.equals("read") && !permissao.equals("write")) {
+                                System.out.println("Permissão inválida. Usa 'read' ou 'write'.");
+                                break;
+                            }
+                            if (fileManager.shareFolder(path, destinatario, permissao)) {
+                                System.out.println("Pasta partilhada com permissao: " + permissao);
                             } else {
                                 System.out.println("Erro a partilhar.");
                             }
@@ -136,7 +140,6 @@ public class DriveClient {
                             }
                         }
                         break;
-
                     case "move":
                         if (parts.length < 3) {
                             System.out.println("Uso: move <origem> <destino>");
@@ -148,9 +151,6 @@ public class DriveClient {
                             }
                         }
                         break;
-
-
-
                     case "sharedwithme":
                         pastasPartilhadas = fileManager.getSharedWithMe(username);
                         if (pastasPartilhadas.isEmpty()) {
@@ -187,13 +187,13 @@ public class DriveClient {
                                  - ls [pasta]                ➔ Listar conteúdo
                                  - cd <nova_pasta> / cd ..   ➔ Mudar de pasta ou voltar atras
                                  - open <ficheiro>           ➔ Abrir e ver conteúdo de ficheiro
-                                 - share <pasta> <destinatario> ➔ Partilhar pasta
+                                 - share <pasta> <destinatario> [permissao] ➔ Partilhar pasta
                                  - sharedwithme              ➔ Listar pastas partilhadas contigo
-                                 - entershared <utilizador>  ➔ Aceder as pastas partilhadas
+                                 - entershared <utilizador>  ➔ Aceder às partilhas recebidas
                                  - unshare <pasta> <utilizador> ➔ Remover partilha
-                                 - delete <caminho>         ➔ Deletar ficheiro ou pasta
+                                 - delete <caminho>          ➔ Deletar ficheiro ou pasta
                                  - move <origem> <destino>   ➔ Mover ficheiro ou pasta
-                                 - logout                    ➔ Terminar sessao
+                                 - logout                    ➔ Terminar sessão
                                  - ajuda                     ➔ Mostrar esta ajuda
                                 """);
                         break;
@@ -233,7 +233,6 @@ public class DriveClient {
                     System.out.println("Erro no upload.");
                 }
                 break;
-
             case "rename":
                 if (parts.length < 3) {
                     System.out.println("Uso: rename <antigo> <novo>");

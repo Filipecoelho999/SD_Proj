@@ -16,7 +16,9 @@ javac -encoding UTF-8 ^
  -d %OUT_DIR% ^
  ..\client\*.java ^
  ..\server\*.java ^
+  ..\util\*.java ^
  ..\rabbitmq\*.java
+
 
 if %errorlevel% neq 0 (
     echo Erro ao compilar.

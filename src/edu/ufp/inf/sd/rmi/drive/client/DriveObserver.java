@@ -14,7 +14,7 @@ public class DriveObserver extends UnicastRemoteObject implements ObserverRI {
 
     @Override
     public void update(String message) throws RemoteException {
-        System.out.println("🔔 [" + username + "] Notificação recebida: " + message);
+        System.out.println("🔔 [rmi][" + username + "] " + message);
     }
 
     @Override
