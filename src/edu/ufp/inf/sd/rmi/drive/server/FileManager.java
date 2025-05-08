@@ -113,19 +113,24 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         }
         try {
+            System.out.println("[DEBUG] Lock adquirido por " + ownerUsername + " para " + path);
+            Thread.sleep(3000); // simular concorrência
+
             Path folderPath = basePath.resolve(folderName);
             Files.createDirectories(folderPath);
             Path filePath = folderPath.resolve(fileName);
             Files.writeString(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             notificarTodos("Ficheiro criado: " + path);
             return true;
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             return false;
         } finally {
             LockManager.getInstance().unlock(path, ownerUsername);
+            System.out.println("[DEBUG] Lock libertado por " + ownerUsername + " para " + path);
         }
     }
+
 
     @Override
     public boolean rename(String folderName, String oldName, String newName) throws RemoteException {
@@ -175,6 +180,9 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         }
         try {
+            System.out.println("[DEBUG] Lock adquirido por " + ownerUsername + " para " + path);
+            Thread.sleep(3000); // simular concorrência
+
             Path targetPath = basePath.resolve(path);
             if (Files.exists(targetPath)) {
                 if (Files.isDirectory(targetPath)) {
@@ -194,13 +202,15 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
                 return true;
             }
             return false;
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             return false;
         } finally {
             LockManager.getInstance().unlock(path, ownerUsername);
+            System.out.println("[DEBUG] Lock libertado por " + ownerUsername + " para " + path);
         }
     }
+
 
     @Override
     public boolean move(String sourcePath, String destPath) throws RemoteException {
@@ -216,19 +226,24 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         }
         try {
+            System.out.println("[DEBUG] Lock adquirido por " + ownerUsername + " para " + sourcePath);
+            Thread.sleep(3000); // simular concorrência
+
             Path source = basePath.resolve(sourcePath);
             Path destination = basePath.resolve(destPath).resolve(source.getFileName());
             Files.createDirectories(destination.getParent());
             Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING);
             notificarTodos("Movido: " + sourcePath + " para " + destPath);
             return true;
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             return false;
         } finally {
             LockManager.getInstance().unlock(sourcePath, ownerUsername);
+            System.out.println("[DEBUG] Lock libertado por " + ownerUsername + " para " + sourcePath);
         }
     }
+
 
     @Override
     public List<String> list(String folderName) throws RemoteException {
