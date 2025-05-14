@@ -17,6 +17,7 @@ javac -encoding UTF-8 ^
  ..\client\*.java ^
  ..\server\*.java ^
   ..\util\*.java ^
+  ..\session\*.java ^
  ..\rabbitmq\*.java
 
 

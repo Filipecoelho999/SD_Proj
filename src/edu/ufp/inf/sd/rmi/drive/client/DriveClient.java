@@ -4,6 +4,8 @@ import edu.ufp.inf.sd.rmi.drive.rabbitmq.Consumer;
 import edu.ufp.inf.sd.rmi.drive.server.AuthRI;
 import edu.ufp.inf.sd.rmi.drive.server.FileManagerRI;
 import edu.ufp.inf.sd.rmi.drive.server.ObserverRI;
+import edu.ufp.inf.sd.rmi.drive.session.Session;
+import edu.ufp.inf.sd.rmi.drive.session.SessionFactory;
 
 import java.rmi.Naming;
 import java.rmi.RemoteException;
@@ -62,6 +64,10 @@ public class DriveClient {
                             fileManager.setMyObserver(observer);
                             fileManager.getSubject().attachObserver(observer); // <--- ESSENCIAL
                             System.out.println("Login com sucesso! Bem-vindo, " + username);
+                            Session sessao = SessionFactory.getSession(username);
+                            if (sessao != null) {
+                                System.out.println("Sessão iniciada às: " + sessao.getLoginTimestamp());
+                            }
                             loggedIn = true;
                             Consumer.currentUser = username;
                             new Thread(() -> Consumer.start()).start();

@@ -1,6 +1,8 @@
 package edu.ufp.inf.sd.rmi.drive.server;
 
 import edu.ufp.inf.sd.rmi.drive.rabbitmq.Publisher;
+import edu.ufp.inf.sd.rmi.drive.session.Session;
+import edu.ufp.inf.sd.rmi.drive.session.SessionFactory;
 import edu.ufp.inf.sd.rmi.drive.util.LockManager;
 
 import java.io.IOException;
@@ -25,7 +27,9 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         this.ownerUsername = username;
         this.donoReal = username;
         this.auth = auth;
-        this.subject = new SubjectImpl();
+        Session sessao = SessionFactory.getSession(username);
+        this.subject = (sessao != null) ? sessao.getSubject() : new SubjectImpl();
+
         this.subjectDonoReal = null;
         this.basePath = Paths.get(System.getProperty("user.dir"), "server_files", username);
         try {
@@ -74,10 +78,13 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         return "";
     }
 
-    private boolean temPermissaoEscrita(String path) {
+
+    private boolean temPermissaoEscrita(String path) throws RemoteException {
         String pasta = path.contains("/") ? path.substring(0, path.indexOf("/")) : path;
         if (ownerUsername.equals(donoReal)) return true;
-        return ((AuthImpl) auth).temPermissaoEscrita(ownerUsername, pasta);
+
+        List<String> partilhas = auth.getPartilhasRecebidas(ownerUsername);
+        return partilhas.contains(pasta);
     }
 
     @Override
@@ -332,12 +339,21 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
     public boolean enterShared(String ownerUsername) throws RemoteException {
         this.basePath = Paths.get(System.getProperty("user.dir"), "server_files", ownerUsername);
         this.donoReal = ownerUsername;
+
+        // VERIFICAÇÃO: se não tiver nenhuma partilha ativa com esse dono, bloqueia
+        List<String> partilhasRecebidas = auth.getPartilhasRecebidas(this.ownerUsername);
+        if (partilhasRecebidas == null || partilhasRecebidas.isEmpty()) {
+            System.out.println("Não tens nenhuma partilha ativa com " + ownerUsername);
+            return false;
+        }
+
         FileManagerRI donoDrive = auth.getDrive(ownerUsername);
         if (donoDrive != null && myObserver != null) {
             this.subjectDonoReal = donoDrive.getSubject();
             subjectDonoReal.attachObserver(myObserver);
             System.out.println("Observer adicionado ao dono: " + ownerUsername);
         }
+
         return true;
     }
 

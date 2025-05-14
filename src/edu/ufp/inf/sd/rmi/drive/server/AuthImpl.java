@@ -1,5 +1,8 @@
 package edu.ufp.inf.sd.rmi.drive.server;
 
+import edu.ufp.inf.sd.rmi.drive.session.Session;
+import edu.ufp.inf.sd.rmi.drive.session.SessionFactory;
+
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
@@ -8,8 +11,6 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
 
     private final Map<String, String> users = new HashMap<>();
     private final Map<String, FileManagerRI> drives = new HashMap<>();
-
-    // Mapa: utilizador → mapa de pasta → permissao ("read" ou "write")
     private final Map<String, Map<String, String>> partilhasRecebidas = new HashMap<>();
 
     public AuthImpl() throws RemoteException {
@@ -29,10 +30,16 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
     @Override
     public FileManagerRI login(String username, String password, ObserverRI observer) throws RemoteException {
         if (!users.containsKey(username) || !users.get(username).equals(password)) return null;
+
         FileManagerRI fm = drives.get(username);
         if (fm instanceof FileManager) {
             ((FileManager) fm).setMyObserver(observer);
         }
+
+        // ✅ Criar nova sessão usando o SessionFactory
+        SubjectRI subject = new SubjectImpl(); // ou obter subject real se já existir
+        SessionFactory.createSession(username, subject);
+
         System.out.println("Login efetuado: " + username);
         return fm;
     }
@@ -71,7 +78,6 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
                 && "write".equalsIgnoreCase(partilhasRecebidas.get(username).get(pasta));
     }
 
-    // ✅ Novo método para notificar todos os utilizadores com acesso
     public List<String> getUsersWithAccessToFolder(String owner, String folderName) {
         List<String> usersWithAccess = new ArrayList<>();
         for (Map.Entry<String, Map<String, String>> entry : partilhasRecebidas.entrySet()) {
