@@ -14,11 +14,11 @@ public class DriveObserver extends UnicastRemoteObject implements ObserverRI {
 
     @Override
     public void update(String message) throws RemoteException {
-        System.out.println("🔔 [rmi][" + username + "] " + message);
+        System.out.println("[rmi][" + username + "] " + message);
     }
 
     @Override
     public String getUsername() throws RemoteException {
-        return username;
+        return this.username; // ou qualquer campo que tenhas guardado no observer
     }
 }

@@ -69,8 +69,6 @@ public class DriveClient {
                                 System.out.println("Sessão iniciada às: " + sessao.getLoginTimestamp());
                             }
                             loggedIn = true;
-                            Consumer.currentUser = username;
-                            new Thread(() -> Consumer.start()).start();
                         } else {
                             System.out.println("Login falhou!");
                         }

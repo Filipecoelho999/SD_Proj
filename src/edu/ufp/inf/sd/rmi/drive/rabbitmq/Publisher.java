@@ -1,39 +1,36 @@
+
 package edu.ufp.inf.sd.rmi.drive.rabbitmq;
 
+import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
 public class Publisher {
+    private final static String EXCHANGE_NAME = "drive_updates";
+    private static Channel channel;
 
-    private static final String QUEUE_NAME = "drive_notifications";
+    static {
+        try {
+            ConnectionFactory factory = new ConnectionFactory();
+            factory.setHost("localhost");
+            factory.setUsername("guest");
+            factory.setPassword("guest");
 
-    public static void publish(String message) {
-        publish("global", message);
+            Connection connection = factory.newConnection();
+            channel = connection.createChannel();
+            channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.FANOUT, true); // <-- define durable=true
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static void publish(String user, String message) {
-        sendMessage("[rabbitmq][" + user + "] " + message);
-    }
-
-    // ✅ NOVO MÉTODO para suportar tag customizada (ex: "rabbitmq", "info", etc)
-    public static void publish(String tag, String user, String message) {
-        sendMessage("[" + tag + "][" + user + "] " + message);
-    }
-
-    private static void sendMessage(String formattedMessage) {
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
-
-        try (Connection connection = factory.newConnection();
-             Channel channel = connection.createChannel()) {
-
-            channel.queueDeclare(QUEUE_NAME, true, false, false, null);
-            channel.basicPublish("", QUEUE_NAME, null, formattedMessage.getBytes("UTF-8"));
-            System.out.println(" [Publisher] Mensagem enviada: '" + formattedMessage + "'");
-
+        try {
+            String fullMessage = "[rabbitmq][" + user + "] " + message;
+            channel.basicPublish(EXCHANGE_NAME, "", null, fullMessage.getBytes());
+            System.out.println(" [Publisher] Mensagem enviada: '" + fullMessage + "'");
         } catch (Exception e) {
-            System.err.println(" [Publisher] Erro ao enviar mensagem: " + e.getMessage());
             e.printStackTrace();
         }
     }

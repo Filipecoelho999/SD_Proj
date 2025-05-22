@@ -36,7 +36,6 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
             ((FileManager) fm).setMyObserver(observer);
         }
 
-        // ✅ Criar nova sessão usando o SessionFactory
         SubjectRI subject = new SubjectImpl(); // ou obter subject real se já existir
         SessionFactory.createSession(username, subject);
 

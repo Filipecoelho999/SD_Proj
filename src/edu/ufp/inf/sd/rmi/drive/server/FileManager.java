@@ -1,3 +1,4 @@
+
 package edu.ufp.inf.sd.rmi.drive.server;
 
 import edu.ufp.inf.sd.rmi.drive.rabbitmq.Publisher;
@@ -14,12 +15,14 @@ import java.util.List;
 
 public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
+    public static final String MODO_PROPAGACAO = System.getProperty("modo", "rmiserver");
+
     private Path basePath;
     private final SubjectRI subject;
     private final AuthRI auth;
-    private final String ownerUsername; // quem fez login
-    private String donoReal; // dono da pasta (só é diferente em enterShared)
-    private SubjectRI subjectDonoReal; // subject do dono da partilha
+    private final String ownerUsername;
+    private String donoReal;
+    private SubjectRI subjectDonoReal;
     private ObserverRI myObserver;
 
     public FileManager(String username, AuthRI auth) throws RemoteException {
@@ -29,7 +32,6 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         this.auth = auth;
         Session sessao = SessionFactory.getSession(username);
         this.subject = (sessao != null) ? sessao.getSubject() : new SubjectImpl();
-
         this.subjectDonoReal = null;
         this.basePath = Paths.get(System.getProperty("user.dir"), "server_files", username);
         try {
@@ -41,31 +43,29 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
     private void notificarTodos(String mensagem) {
         try {
-            // RMI
-            if (donoReal.equals(ownerUsername)) {
-                subject.notifyObservers("[rmi][" + ownerUsername + "] " + mensagem);
-            } else if (subjectDonoReal != null) {
-                subjectDonoReal.notifyObservers("[rmi][" + ownerUsername + "] " + mensagem);
-            }
-
-            // RabbitMQ para o dono
-            Publisher.publish("rabbitmq", donoReal, mensagem);
-
-            // RabbitMQ para todos com partilha ativa
-            List<String> sharedUsers = ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, getTopFolder(mensagem));
-            for (String sharedUser : sharedUsers) {
-                if (!sharedUser.equals(donoReal)) {
-                    Publisher.publish("rabbitmq", sharedUser, mensagem);
+            if (MODO_PROPAGACAO.equalsIgnoreCase("rabbitmq")) {
+                Publisher.publish(donoReal, mensagem);
+                List<String> sharedUsers = ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, getTopFolder(mensagem));
+                for (String sharedUser : sharedUsers) {
+                    if (!sharedUser.equals(donoReal)) {
+                        Publisher.publish(sharedUser, mensagem);
+                    }
                 }
             }
 
+            if (MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {
+                if (donoReal.equals(ownerUsername)) {
+                    subject.notifyObservers("[rmi][" + ownerUsername + "] " + mensagem);
+                } else if (subjectDonoReal != null) {
+                    subjectDonoReal.notifyObservers("[rmi][" + ownerUsername + "] " + mensagem);
+                }
+            }
         } catch (RemoteException e) {
             e.printStackTrace();
         }
     }
 
     private String getTopFolder(String mensagem) {
-        // Extrai nome da pasta a partir da mensagem
         String[] tokens = mensagem.split(":");
         if (tokens.length >= 2) {
             String path = tokens[1].trim();
@@ -78,11 +78,9 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         return "";
     }
 
-
     private boolean temPermissaoEscrita(String path) throws RemoteException {
         String pasta = path.contains("/") ? path.substring(0, path.indexOf("/")) : path;
         if (ownerUsername.equals(donoReal)) return true;
-
         List<String> partilhas = auth.getPartilhasRecebidas(ownerUsername);
         return partilhas.contains(pasta);
     }
@@ -93,7 +91,6 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             notificarTodos("Sem permissao de escrita: " + folderName);
             return false;
         }
-
         try {
             Path folderPath = basePath.resolve(folderName);
             Files.createDirectories(folderPath);
@@ -105,24 +102,19 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
     }
 
-
     @Override
     public boolean upload(String folderName, String fileName, String content) throws RemoteException {
         String path = folderName + "/" + fileName;
-
         if (!temPermissaoEscrita(folderName)) {
             notificarTodos("Sem permissao de escrita: " + folderName);
             return false;
         }
-
         if (!LockManager.getInstance().lock(path, ownerUsername)) {
             notificarTodos("Recurso em uso: " + path);
             return false;
         }
         try {
-            System.out.println("[DEBUG] Lock adquirido por " + ownerUsername + " para " + path);
-            Thread.sleep(3000); // simular concorrência
-
+            Thread.sleep(3000);
             Path folderPath = basePath.resolve(folderName);
             Files.createDirectories(folderPath);
             Path filePath = folderPath.resolve(fileName);
@@ -134,30 +126,22 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         } finally {
             LockManager.getInstance().unlock(path, ownerUsername);
-            System.out.println("[DEBUG] Lock libertado por " + ownerUsername + " para " + path);
         }
     }
-
 
     @Override
     public boolean rename(String folderName, String oldName, String newName) throws RemoteException {
         String path = folderName + "/" + oldName;
-
         if (!temPermissaoEscrita(folderName)) {
             notificarTodos("Sem permissao de escrita: " + folderName);
             return false;
         }
-
         if (!LockManager.getInstance().lock(path, ownerUsername)) {
             notificarTodos("Recurso em uso: " + path);
             return false;
         }
-
         try {
-            System.out.println("[DEBUG] Lock adquirido por " + ownerUsername + " para " + path);
-            // Simular operação demorada
             Thread.sleep(3000);
-
             Path oldPath = basePath.resolve(folderName).resolve(oldName);
             Path newPath = basePath.resolve(folderName).resolve(newName);
             Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
@@ -168,40 +152,32 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         } finally {
             LockManager.getInstance().unlock(path, ownerUsername);
-            System.out.println("[DEBUG] Lock libertado por " + ownerUsername + " para " + path);
         }
     }
-
 
     @Override
     public boolean delete(String path) throws RemoteException {
         String pasta = path.contains("/") ? path.substring(0, path.indexOf("/")) : path;
-
         if (!temPermissaoEscrita(pasta)) {
             notificarTodos("Sem permissao de escrita: " + pasta);
             return false;
         }
-
         if (!LockManager.getInstance().lock(path, ownerUsername)) {
             notificarTodos("Recurso em uso: " + path);
             return false;
         }
         try {
-            System.out.println("[DEBUG] Lock adquirido por " + ownerUsername + " para " + path);
-            Thread.sleep(3000); // simular concorrência
-
+            Thread.sleep(3000);
             Path targetPath = basePath.resolve(path);
             if (Files.exists(targetPath)) {
                 if (Files.isDirectory(targetPath)) {
-                    Files.walk(targetPath)
-                            .sorted((a, b) -> b.compareTo(a))
-                            .forEach(p -> {
-                                try {
-                                    Files.delete(p);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                            });
+                    Files.walk(targetPath).sorted((a, b) -> b.compareTo(a)).forEach(p -> {
+                        try {
+                            Files.delete(p);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
                 } else {
                     Files.delete(targetPath);
                 }
@@ -214,28 +190,22 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         } finally {
             LockManager.getInstance().unlock(path, ownerUsername);
-            System.out.println("[DEBUG] Lock libertado por " + ownerUsername + " para " + path);
         }
     }
-
 
     @Override
     public boolean move(String sourcePath, String destPath) throws RemoteException {
         String pasta = sourcePath.contains("/") ? sourcePath.substring(0, sourcePath.indexOf("/")) : sourcePath;
-
         if (!temPermissaoEscrita(pasta)) {
             notificarTodos("Sem permissao de escrita: " + pasta);
             return false;
         }
-
         if (!LockManager.getInstance().lock(sourcePath, ownerUsername)) {
             notificarTodos("Recurso em uso: " + sourcePath);
             return false;
         }
         try {
-            System.out.println("[DEBUG] Lock adquirido por " + ownerUsername + " para " + sourcePath);
-            Thread.sleep(3000); // simular concorrência
-
+            Thread.sleep(3000);
             Path source = basePath.resolve(sourcePath);
             Path destination = basePath.resolve(destPath).resolve(source.getFileName());
             Files.createDirectories(destination.getParent());
@@ -247,10 +217,8 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         } finally {
             LockManager.getInstance().unlock(sourcePath, ownerUsername);
-            System.out.println("[DEBUG] Lock libertado por " + ownerUsername + " para " + sourcePath);
         }
     }
-
 
     @Override
     public List<String> list(String folderName) throws RemoteException {
@@ -295,13 +263,17 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         boolean partilhaFeita = ((AuthImpl) auth).adicionarPartilha(targetUser, folderName, permissao);
         if (partilhaFeita) {
             FileManagerRI targetDrive = auth.getDrive(targetUser);
-            if (targetDrive != null) {
+            if (targetDrive != null && MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {
                 SubjectRI subjectTarget = targetDrive.getSubject();
                 for (ObserverRI observer : subjectTarget.getObservers().values()) {
                     observer.update("[rmi][" + targetUser + "] Recebeste uma nova partilha: " + folderName + " de " + ownerUsername + " [" + permissao + "]");
                 }
             }
-            Publisher.publish("rabbitmq", targetUser, "Partilha criada: " + folderName + " de " + ownerUsername + " [" + permissao + "]");
+
+            if (MODO_PROPAGACAO.equalsIgnoreCase("rabbitmq")) {
+                Publisher.publish(targetUser, "Partilha criada: " + folderName + " de " + ownerUsername + " [" + permissao + "]");
+            }
+
             return true;
         }
         return false;
@@ -312,24 +284,24 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         boolean removida = auth.removerPartilha(targetUser, folderName);
         if (removida) {
             FileManagerRI targetDrive = auth.getDrive(targetUser);
-            if (targetDrive != null) {
+            if (targetDrive != null && MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {
                 SubjectRI subjectTarget = targetDrive.getSubject();
                 for (ObserverRI observer : subjectTarget.getObservers().values()) {
                     observer.update("[rmi][" + targetUser + "] Partilha removida: " + folderName + " de " + ownerUsername);
                 }
             }
 
-            // ✅ Notificação RMI
+            if (MODO_PROPAGACAO.equalsIgnoreCase("rabbitmq")) {
+                Publisher.publish(targetUser, "Partilha removida: " + folderName + " de " + ownerUsername);
+                Publisher.publish(ownerUsername, "Removeste a partilha de " + folderName + " com " + targetUser);
+            }
+
             notificarTodos("Partilha removida: " + folderName + " de " + targetUser);
-
-            // ✅ Notificação RabbitMQ clara e separada
-            Publisher.publish("rabbitmq", targetUser, "Partilha removida: " + folderName + " de " + ownerUsername);
-            Publisher.publish("rabbitmq", ownerUsername, "Removeste a partilha de " + folderName + " com " + targetUser);
-
             return true;
         }
         return false;
     }
+
     @Override
     public List<String> getSharedWithMe(String myUsername) throws RemoteException {
         return auth.getPartilhasRecebidas(myUsername);
@@ -340,22 +312,24 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         this.basePath = Paths.get(System.getProperty("user.dir"), "server_files", ownerUsername);
         this.donoReal = ownerUsername;
 
-        // VERIFICAÇÃO: se não tiver nenhuma partilha ativa com esse dono, bloqueia
         List<String> partilhasRecebidas = auth.getPartilhasRecebidas(this.ownerUsername);
         if (partilhasRecebidas == null || partilhasRecebidas.isEmpty()) {
             System.out.println("Não tens nenhuma partilha ativa com " + ownerUsername);
             return false;
         }
 
-        FileManagerRI donoDrive = auth.getDrive(ownerUsername);
-        if (donoDrive != null && myObserver != null) {
-            this.subjectDonoReal = donoDrive.getSubject();
-            subjectDonoReal.attachObserver(myObserver);
-            System.out.println("Observer adicionado ao dono: " + ownerUsername);
+        if (MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {
+            FileManagerRI donoDrive = auth.getDrive(ownerUsername);
+            if (donoDrive != null && myObserver != null) {
+                this.subjectDonoReal = donoDrive.getSubject();
+                subjectDonoReal.attachObserver(myObserver);
+                System.out.println("Observer adicionado ao dono: " + ownerUsername);
+            }
         }
 
         return true;
     }
+
 
     @Override
     public SubjectRI getSubject() throws RemoteException {
@@ -366,7 +340,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         this.myObserver = observer;
     }
 
-    private String getOwnerUsername() {
-        return ownerUsername;
+    public static void setModoPropagacao(String modo) {
+        System.setProperty("modo", modo);
     }
 }

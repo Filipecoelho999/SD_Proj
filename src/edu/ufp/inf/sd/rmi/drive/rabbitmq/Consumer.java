@@ -17,36 +17,53 @@ public class Consumer {
             connection = factory.newConnection();
             channel = connection.createChannel();
 
-            channel.queueDeclare(QUEUE_NAME, true, false, false, null);
+            // Declara o exchange com durabilidade igual ao Publisher
+            String EXCHANGE_NAME = "drive_updates";
+            channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.FANOUT, true);
 
-            System.out.println(" [Consumer] À espera de mensagens...");
-            System.out.println(" [Consumer] Utilizador atual: " + currentUser);
+            // Cria uma queue anónima exclusiva
+            String queueName = channel.queueDeclare().getQueue();
+            channel.queueBind(queueName, EXCHANGE_NAME, "");
+
+            System.out.println(" [Consumer] A espera de mensagens...");
+            if (currentUser != null) {
+                System.out.println(" [Consumer] Utilizador atual: " + currentUser);
+            }
 
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 String message = new String(delivery.getBody(), "UTF-8");
 
-                // ✅ Exibir se mensagem contiver o nome do utilizador
-                if (currentUser != null && message.contains("[" + currentUser + "]")) {
-                    System.out.println("🔔 " + message);
+                // Se quiseres filtrar por utilizador:
+                if (currentUser == null || message.contains("[" + currentUser + "]")) {
+                    System.out.println(" " + message);
                 }
 
                 channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
             };
 
-            channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> {});
+            channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {});
 
         } catch (Exception e) {
             System.err.println(" [Consumer] Erro ao consumir mensagens: " + e.getMessage());
             e.printStackTrace();
         }
     }
-
     public static void stop() {
         try {
             if (channel != null) channel.close();
             if (connection != null) connection.close();
         } catch (Exception e) {
             System.err.println(" [Consumer] Erro ao fechar conexões: " + e.getMessage());
+        }
+    }
+
+    // Agora adicionamos o ponto de entrada principal
+    public static void main(String[] args) {
+        try {
+            currentUser = System.getenv("USER"); // opcionalmente ir buscar user do SO
+            start();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
