@@ -1,12 +1,6 @@
-@REM ************************************************************************************
-@REM Description: run 
-@REM Author: Rui S. Moreira
-@REM Date: 10/04/2018
-@REM ************************************************************************************
-@REM Script usage: runclient <role> (where role should be: producer / consumer)
-call setenv consumer
+@echo off
+echo === Iniciando Consumer RabbitMQ ===
 
-cd %ABSPATH2CLASSES%
-java -cp %CLASSPATH% %JAVAPACKAGEROLE%.%CONSUMER_CLASS_PREFIX% %BROKER_HOST% %BROKER_PORT% %BROKER_QUEUE%
+java -cp "C:\Users\Utilizador\Desktop\uni2\SDProj\out\production\SD;C:\Users\Utilizador\Desktop\uni2\SDProj\lib\*" edu.ufp.inf.sd.rabbitmqservices.drive.SubscribeClient
 
-cd %ABSPATH2SRC%/%JAVASCRIPTSPATH%
+pause

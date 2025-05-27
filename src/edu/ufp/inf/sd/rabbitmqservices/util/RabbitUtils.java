@@ -95,4 +95,21 @@ public class RabbitUtils {
         Logger.getAnonymousLogger().log(Level.INFO, Thread.currentThread().getName() + "->joinStrings(): words = " + words.toString());
         return words.toString();
     }
+    public static void publish(String message) {
+        String EXCHANGE_NAME = "updatesExchange";
+        String ROUTING_KEY = "drive.update";
+
+        try (Connection connection = newConnection2Server("localhost", 5672, "guest", "guest");
+             Channel channel = createChannel2Server(connection)) {
+
+            channel.exchangeDeclare(EXCHANGE_NAME, "topic", true);
+            channel.basicPublish(EXCHANGE_NAME, ROUTING_KEY, null, message.getBytes());
+
+            System.out.println("[RabbitMQ] Mensagem enviada: " + message);
+
+        } catch (IOException | TimeoutException e) {
+            System.err.println("Erro ao publicar mensagem RabbitMQ: " + e.getMessage());
+            e.printStackTrace(); //  Adiciona isto
+        }
+    }
 }
