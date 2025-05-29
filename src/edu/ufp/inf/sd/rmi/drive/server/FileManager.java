@@ -81,9 +81,9 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
     private boolean temPermissaoEscrita(String path) throws RemoteException {
         String pasta = path.contains("/") ? path.substring(0, path.indexOf("/")) : path;
         if (ownerUsername.equals(donoReal)) return true;
-        List<String> partilhas = auth.getPartilhasRecebidas(ownerUsername);
-        return partilhas.contains(pasta);
+        return ((AuthImpl) auth).temPermissaoEscrita(ownerUsername, pasta);
     }
+
 
     @Override
     public boolean mkdir(String folderName) throws RemoteException {
@@ -157,9 +157,8 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
     @Override
     public boolean delete(String path) throws RemoteException {
-        String pasta = path.contains("/") ? path.substring(0, path.indexOf("/")) : path;
-        if (!temPermissaoEscrita(pasta)) {
-            notificarTodos("Sem permissao de escrita: " + pasta);
+        if (!temPermissaoEscrita(path)) {
+            notificarTodos("Sem permissao de escrita: " + path);
             return false;
         }
         if (!LockManager.getInstance().lock(path, ownerUsername)) {
@@ -195,10 +194,8 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
     @Override
     public boolean move(String sourcePath, String destPath) throws RemoteException {
-        String pasta = sourcePath.contains("/") ? sourcePath.substring(0, sourcePath.indexOf("/")) : sourcePath;
-        if (!temPermissaoEscrita(pasta)) {
-            notificarTodos("Sem permissao de escrita: " + pasta);
-            return false;
+        if (!temPermissaoEscrita(sourcePath)) {
+            notificarTodos("Sem permissao de escrita: " + sourcePath);            return false;
         }
         if (!LockManager.getInstance().lock(sourcePath, ownerUsername)) {
             notificarTodos("Recurso em uso: " + sourcePath);
@@ -260,6 +257,9 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
     }
 
     public boolean shareFolder(String folderName, String targetUser, String permissao) throws RemoteException {
+        if (!ownerUsername.equals(donoReal)) {
+            throw new RemoteException("Apenas o dono pode partilhar pastas.");
+        }
         boolean partilhaFeita = ((AuthImpl) auth).adicionarPartilha(targetUser, folderName, permissao);
         if (partilhaFeita) {
             FileManagerRI targetDrive = auth.getDrive(targetUser);
@@ -281,6 +281,9 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
     @Override
     public boolean unshareFolder(String folderName, String targetUser) throws RemoteException {
+        if (!ownerUsername.equals(donoReal)) {
+            throw new RemoteException("Apenas o dono pode remover partilhas.");
+        }
         boolean removida = auth.removerPartilha(targetUser, folderName);
         if (removida) {
             FileManagerRI targetDrive = auth.getDrive(targetUser);
