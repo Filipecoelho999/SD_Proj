@@ -8,7 +8,7 @@ public interface AuthRI extends Remote {
     boolean register(String username, String password) throws RemoteException;
     FileManagerRI login(String username, String password, ObserverRI observer) throws RemoteException;
     List<String> getPartilhasRecebidas(String username) throws RemoteException;
-    boolean adicionarPartilha(String targetUser, String pastaPartilhada) throws RemoteException;
+    boolean adicionarPartilha(String targetUser, String pastaPartilhada, String permissao, String dono) throws RemoteException;
     FileManagerRI getDrive(String username) throws RemoteException; // NOVO!
     boolean removerPartilha(String targetUser, String pastaPartilhada) throws RemoteException;
 

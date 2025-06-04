@@ -1,4 +1,3 @@
-
 package edu.ufp.inf.sd.rmi.drive.server;
 
 import edu.ufp.inf.sd.rmi.drive.rabbitmq.Publisher;
@@ -11,6 +10,7 @@ import java.nio.file.*;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class FileManager extends UnicastRemoteObject implements FileManagerRI {
@@ -39,6 +39,14 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         } catch (IOException e) {
             throw new RemoteException("Erro a criar pasta base.", e);
         }
+    }
+
+    private Path resolvePath(String folderName) {
+        if (!ownerUsername.equals(donoReal)) {
+            Path sharedBase = Paths.get(System.getProperty("user.dir"), "server_files", donoReal);
+            return sharedBase.resolve(folderName);
+        }
+        return basePath.resolve(folderName);
     }
 
     private void notificarTodos(String mensagem) {
@@ -84,7 +92,6 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         return ((AuthImpl) auth).temPermissaoEscrita(ownerUsername, pasta);
     }
 
-
     @Override
     public boolean mkdir(String folderName) throws RemoteException {
         if (!temPermissaoEscrita(folderName)) {
@@ -92,9 +99,24 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             return false;
         }
         try {
-            Path folderPath = basePath.resolve(folderName);
+            Path folderPath = resolvePath(folderName);
             Files.createDirectories(folderPath);
             notificarTodos("Pasta criada: " + folderName);
+
+            System.out.println("[DEBUG] mkdir chamado - donoReal: " + donoReal);
+            System.out.println("[DEBUG] mkdir path real: " + folderPath);
+
+            Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
+            Path relativePath = baseUserPath.relativize(folderPath.toAbsolutePath().normalize());
+            String relativePathStr = relativePath.toString().replace("\\", "/");
+
+            SharedSyncManager.propagateChange(
+                    folderPath,
+                    relativePathStr,
+                    donoReal,
+                    ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativePathStr)
+            );
+
             return true;
         } catch (IOException e) {
             e.printStackTrace();
@@ -115,11 +137,23 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
         try {
             Thread.sleep(3000);
-            Path folderPath = basePath.resolve(folderName);
+            Path folderPath = resolvePath(folderName);
             Files.createDirectories(folderPath);
             Path filePath = folderPath.resolve(fileName);
             Files.writeString(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             notificarTodos("Ficheiro criado: " + path);
+
+            Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
+            Path relativePath = baseUserPath.relativize(filePath.toAbsolutePath().normalize());
+            String relativePathStr = relativePath.toString().replace("\\", "/");
+
+            SharedSyncManager.propagateChange(
+                    filePath,
+                    relativePathStr,
+                    donoReal,
+                    ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativePathStr)
+            );
+
             return true;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
@@ -128,6 +162,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             LockManager.getInstance().unlock(path, ownerUsername);
         }
     }
+
 
     @Override
     public boolean rename(String folderName, String oldName, String newName) throws RemoteException {
@@ -142,10 +177,33 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
         try {
             Thread.sleep(3000);
-            Path oldPath = basePath.resolve(folderName).resolve(oldName);
-            Path newPath = basePath.resolve(folderName).resolve(newName);
+            Path folderPath = resolvePath(folderName);
+            Path oldPath = folderPath.resolve(oldName);
+            Path newPath = folderPath.resolve(newName);
             Files.move(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING);
             notificarTodos("Renomeado: " + folderName + "/" + oldName + " para " + newName);
+
+            Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
+            Path relativeOldPath = baseUserPath.relativize(oldPath.toAbsolutePath().normalize());
+            String relativeOldStr = relativeOldPath.toString().replace("\\", "/");
+
+            // ⚠️ APAGAR versão antiga no receiver antes de enviar a nova
+            SharedSyncManager.deleteFromAll(
+                    relativeOldStr,
+                    donoReal,
+                    ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativeOldStr)
+            );
+
+            Path relativePath = baseUserPath.relativize(newPath.toAbsolutePath().normalize());
+            String relativePathStr = relativePath.toString().replace("\\", "/");
+
+            SharedSyncManager.propagateChange(
+                    newPath,
+                    relativePathStr,
+                    donoReal,
+                    ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativePathStr)
+            );
+
             return true;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
@@ -167,20 +225,33 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
         try {
             Thread.sleep(3000);
-            Path targetPath = basePath.resolve(path);
+            Path targetPath = resolvePath(path);
             if (Files.exists(targetPath)) {
                 if (Files.isDirectory(targetPath)) {
-                    Files.walk(targetPath).sorted((a, b) -> b.compareTo(a)).forEach(p -> {
-                        try {
-                            Files.delete(p);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
+                    Files.walk(targetPath)
+                            .sorted(Comparator.reverseOrder())
+                            .forEach(p -> {
+                                try {
+                                    Files.deleteIfExists(p);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            });
                 } else {
                     Files.delete(targetPath);
                 }
-                notificarTodos("Deletado: " + path);
+                notificarTodos("Deleted: " + path);
+
+                Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
+                Path relativePath = baseUserPath.relativize(targetPath.toAbsolutePath().normalize());
+                String relativePathStr = relativePath.toString().replace("\\", "/");
+
+                SharedSyncManager.deleteFromAll(
+                        relativePathStr,
+                        donoReal,
+                        ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativePathStr)
+                );
+
                 return true;
             }
             return false;
@@ -195,7 +266,8 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
     @Override
     public boolean move(String sourcePath, String destPath) throws RemoteException {
         if (!temPermissaoEscrita(sourcePath)) {
-            notificarTodos("Sem permissao de escrita: " + sourcePath);            return false;
+            notificarTodos("Sem permissao de escrita: " + sourcePath);
+            return false;
         }
         if (!LockManager.getInstance().lock(sourcePath, ownerUsername)) {
             notificarTodos("Recurso em uso: " + sourcePath);
@@ -203,11 +275,34 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
         try {
             Thread.sleep(3000);
-            Path source = basePath.resolve(sourcePath);
-            Path destination = basePath.resolve(destPath).resolve(source.getFileName());
+            Path source = resolvePath(sourcePath);
+            Path destination = resolvePath(destPath).resolve(source.getFileName());
+
             Files.createDirectories(destination.getParent());
             Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING);
             notificarTodos("Movido: " + sourcePath + " para " + destPath);
+
+            Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
+
+            // 🔴 NOVO: deletar o antigo nos receivers
+            Path relativeOldPath = baseUserPath.relativize(source.toAbsolutePath().normalize());
+            String relativeOldStr = relativeOldPath.toString().replace("\\", "/");
+            SharedSyncManager.deleteFromAll(
+                    relativeOldStr,
+                    donoReal,
+                    ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativeOldStr)
+            );
+
+            // ✅ Depois propaga o novo
+            Path relativeNewPath = baseUserPath.relativize(destination.toAbsolutePath().normalize());
+            String relativeNewStr = relativeNewPath.toString().replace("\\", "/");
+            SharedSyncManager.propagateChange(
+                    destination,
+                    relativeNewStr,
+                    donoReal,
+                    ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativeNewStr)
+            );
+
             return true;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
@@ -216,6 +311,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             LockManager.getInstance().unlock(sourcePath, ownerUsername);
         }
     }
+
 
     @Override
     public List<String> list(String folderName) throws RemoteException {
@@ -260,8 +356,18 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         if (!ownerUsername.equals(donoReal)) {
             throw new RemoteException("Apenas o dono pode partilhar pastas.");
         }
-        boolean partilhaFeita = ((AuthImpl) auth).adicionarPartilha(targetUser, folderName, permissao);
+
+        boolean partilhaFeita = ((AuthImpl) auth).adicionarPartilha(targetUser, folderName, permissao, ownerUsername);
         if (partilhaFeita) {
+            // 🔁 Criar a cópia física no receiver
+            try {
+                Path source = Paths.get("server_files", ownerUsername, folderName);
+                SharedSyncManager.createSharedFolder(source, targetUser, ownerUsername, folderName);
+            } catch (IOException e) {
+                System.err.println("Erro ao criar cópia física para partilha: " + e.getMessage());
+            }
+
+            // 🔔 Notificações
             FileManagerRI targetDrive = auth.getDrive(targetUser);
             if (targetDrive != null && MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {
                 SubjectRI subjectTarget = targetDrive.getSubject();
@@ -276,8 +382,10 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
             return true;
         }
+
         return false;
     }
+
 
     @Override
     public boolean unshareFolder(String folderName, String targetUser) throws RemoteException {
@@ -286,6 +394,25 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
         boolean removida = auth.removerPartilha(targetUser, folderName);
         if (removida) {
+            // Remover fisicamente do receiver
+            Path sharedFolderPath = Paths.get("server_files", targetUser, "shared_" + ownerUsername + "_" + folderName);
+            try {
+                if (Files.exists(sharedFolderPath)) {
+                    Files.walk(sharedFolderPath)
+                            .sorted(Comparator.reverseOrder())
+                            .forEach(p -> {
+                                try {
+                                    Files.deleteIfExists(p);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            });
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            // Notificações
             FileManagerRI targetDrive = auth.getDrive(targetUser);
             if (targetDrive != null && MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {
                 SubjectRI subjectTarget = targetDrive.getSubject();
@@ -304,6 +431,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
         }
         return false;
     }
+
 
     @Override
     public List<String> getSharedWithMe(String myUsername) throws RemoteException {
@@ -332,6 +460,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
         return true;
     }
+
 
 
     @Override

@@ -44,15 +44,13 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
     }
 
     @Override
-    public boolean adicionarPartilha(String targetUser, String pastaPartilhada) throws RemoteException {
-        return adicionarPartilha(targetUser, pastaPartilhada, "read");
-    }
-
-    public boolean adicionarPartilha(String targetUser, String pastaPartilhada, String permissao) throws RemoteException {
+    public boolean adicionarPartilha(String targetUser, String pastaPartilhada, String permissao, String dono) throws RemoteException {
         partilhasRecebidas.putIfAbsent(targetUser, new HashMap<>());
-        partilhasRecebidas.get(targetUser).put(pastaPartilhada, permissao);
+        partilhasRecebidas.get(targetUser).put(pastaPartilhada, dono + ":" + permissao);
+        System.out.println("[DEBUG][PARTILHA] Partilha adicionada: " + targetUser + " → " + pastaPartilhada + " = " + dono + ":" + permissao);
         return true;
     }
+
 
     @Override
     public List<String> getPartilhasRecebidas(String username) throws RemoteException {
@@ -73,18 +71,28 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
     }
 
     public boolean temPermissaoEscrita(String username, String pasta) {
-        return partilhasRecebidas.containsKey(username)
-                && "write".equalsIgnoreCase(partilhasRecebidas.get(username).get(pasta));
+        if (!partilhasRecebidas.containsKey(username)) return false;
+        String valor = partilhasRecebidas.get(username).get(pasta);
+        if (valor == null || !valor.contains(":")) return false;
+        String[] parts = valor.split(":");
+        return parts.length == 2 && parts[1].equalsIgnoreCase("write");
     }
 
     public List<String> getUsersWithAccessToFolder(String owner, String folderName) {
-        List<String> usersWithAccess = new ArrayList<>();
+        // garantir que comparas sempre com a pasta raiz
+        String topFolder = folderName.contains("/") ? folderName.split("/")[0] : folderName;
+
+        List<String> usersComPermissao = new ArrayList<>();
         for (Map.Entry<String, Map<String, String>> entry : partilhasRecebidas.entrySet()) {
-            Map<String, String> shared = entry.getValue();
-            if (shared.containsKey(folderName)) {
-                usersWithAccess.add(entry.getKey());
+            String receiver = entry.getKey();
+            Map<String, String> partilhas = entry.getValue();
+            String valor = partilhas.get(topFolder);
+            if (valor != null && valor.startsWith(owner + ":")) {
+                usersComPermissao.add(receiver);
             }
         }
-        return usersWithAccess;
+        return usersComPermissao;
     }
+
+
 }
