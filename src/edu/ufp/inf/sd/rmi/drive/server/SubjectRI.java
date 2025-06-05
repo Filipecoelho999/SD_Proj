@@ -1,5 +1,4 @@
 package edu.ufp.inf.sd.rmi.drive.server;
-import edu.ufp.inf.sd.rmi.drive.server.ObserverRI;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Map;

@@ -1,6 +1,10 @@
 package edu.ufp.inf.sd.rmi.drive.rabbitmq;
-
 import com.rabbitmq.client.*;
+
+// Consumidor RabbitMQ (lado do cliente). Liga-se ao exchange "drive_updates" e escuta mensagens.
+// Imprime notificações relacionadas com alterações em tempo real feitas por outros utilizadores.
+// É usado para cumprir o Requisito 3.2 (propagação assíncrona via RabbitMQ).
+
 
 public class Consumer {
 

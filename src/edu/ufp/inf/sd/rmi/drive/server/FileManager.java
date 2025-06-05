@@ -1,10 +1,8 @@
 package edu.ufp.inf.sd.rmi.drive.server;
-
 import edu.ufp.inf.sd.rmi.drive.rabbitmq.Publisher;
 import edu.ufp.inf.sd.rmi.drive.session.Session;
 import edu.ufp.inf.sd.rmi.drive.session.SessionFactory;
 import edu.ufp.inf.sd.rmi.drive.util.LockManager;
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.rmi.RemoteException;
@@ -102,10 +100,6 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             Path folderPath = resolvePath(folderName);
             Files.createDirectories(folderPath);
             notificarTodos("Pasta criada: " + folderName);
-
-            System.out.println("[DEBUG] mkdir chamado - donoReal: " + donoReal);
-            System.out.println("[DEBUG] mkdir path real: " + folderPath);
-
             Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
             Path relativePath = baseUserPath.relativize(folderPath.toAbsolutePath().normalize());
             String relativePathStr = relativePath.toString().replace("\\", "/");
@@ -147,10 +141,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             Path relativePath = baseUserPath.relativize(filePath.toAbsolutePath().normalize());
             String relativePathStr = relativePath.toString().replace("\\", "/");
 
-            SharedSyncManager.propagateChange(
-                    filePath,
-                    relativePathStr,
-                    donoReal,
+            SharedSyncManager.propagateChange(filePath, relativePathStr, donoReal,
                     ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativePathStr)
             );
 
@@ -187,7 +178,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
             Path relativeOldPath = baseUserPath.relativize(oldPath.toAbsolutePath().normalize());
             String relativeOldStr = relativeOldPath.toString().replace("\\", "/");
 
-            // ⚠️ APAGAR versão antiga no receiver antes de enviar a nova
+            // APAGAR versão antiga no receiver antes de enviar a nova
             SharedSyncManager.deleteFromAll(
                     relativeOldStr,
                     donoReal,
@@ -241,7 +232,6 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
                     Files.delete(targetPath);
                 }
                 notificarTodos("Deleted: " + path);
-
                 Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
                 Path relativePath = baseUserPath.relativize(targetPath.toAbsolutePath().normalize());
                 String relativePathStr = relativePath.toString().replace("\\", "/");
@@ -284,7 +274,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
             Path baseUserPath = Paths.get(System.getProperty("user.dir"), "server_files", donoReal).toAbsolutePath().normalize();
 
-            // 🔴 NOVO: deletar o antigo nos receivers
+            // delete o antigo nos receivers
             Path relativeOldPath = baseUserPath.relativize(source.toAbsolutePath().normalize());
             String relativeOldStr = relativeOldPath.toString().replace("\\", "/");
             SharedSyncManager.deleteFromAll(
@@ -293,7 +283,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
                     ((AuthImpl) auth).getUsersWithAccessToFolder(donoReal, relativeOldStr)
             );
 
-            // ✅ Depois propaga o novo
+            // Depois propaga o novo
             Path relativeNewPath = baseUserPath.relativize(destination.toAbsolutePath().normalize());
             String relativeNewStr = relativeNewPath.toString().replace("\\", "/");
             SharedSyncManager.propagateChange(
@@ -359,7 +349,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
 
         boolean partilhaFeita = ((AuthImpl) auth).adicionarPartilha(targetUser, folderName, permissao, ownerUsername);
         if (partilhaFeita) {
-            // 🔁 Criar a cópia física no receiver
+            //  Criar a cópia física no receiver
             try {
                 Path source = Paths.get("server_files", ownerUsername, folderName);
                 SharedSyncManager.createSharedFolder(source, targetUser, ownerUsername, folderName);
@@ -367,7 +357,7 @@ public class FileManager extends UnicastRemoteObject implements FileManagerRI {
                 System.err.println("Erro ao criar cópia física para partilha: " + e.getMessage());
             }
 
-            // 🔔 Notificações
+            // Notificações
             FileManagerRI targetDrive = auth.getDrive(targetUser);
             if (targetDrive != null && MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {
                 SubjectRI subjectTarget = targetDrive.getSubject();

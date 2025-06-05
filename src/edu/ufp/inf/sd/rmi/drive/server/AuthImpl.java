@@ -1,11 +1,13 @@
 package edu.ufp.inf.sd.rmi.drive.server;
-
-import edu.ufp.inf.sd.rmi.drive.session.Session;
 import edu.ufp.inf.sd.rmi.drive.session.SessionFactory;
-
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+
+// Responsável por autenticação e gestão de utilizadores no servidor.
+// Permite registar, fazer login e associar sessões e drives aos utilizadores.
+// Cria instâncias de FileManager e Subject para cada utilizador autenticado.
+// Chamado pelo cliente via RMI no momento de login e registo.
 
 public class AuthImpl extends UnicastRemoteObject implements AuthRI {
 
@@ -47,7 +49,6 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
     public boolean adicionarPartilha(String targetUser, String pastaPartilhada, String permissao, String dono) throws RemoteException {
         partilhasRecebidas.putIfAbsent(targetUser, new HashMap<>());
         partilhasRecebidas.get(targetUser).put(pastaPartilhada, dono + ":" + permissao);
-        System.out.println("[DEBUG][PARTILHA] Partilha adicionada: " + targetUser + " → " + pastaPartilhada + " = " + dono + ":" + permissao);
         return true;
     }
 

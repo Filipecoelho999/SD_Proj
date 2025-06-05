@@ -1,9 +1,13 @@
 package edu.ufp.inf.sd.rmi.drive.server;
-
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Map;
+
+// Implementa a interface SubjectRI. Gera e mantém a lista de observers registados.
+// Permite a notificação dos clientes conectados sobre ações feitas por outros utilizadores.
+// É utilizado principalmente pelo FileManager e AuthImpl para propagar atualizações via RMI.
+
 
 public class SubjectImpl extends UnicastRemoteObject implements SubjectRI {
 
@@ -30,6 +34,7 @@ public class SubjectImpl extends UnicastRemoteObject implements SubjectRI {
             System.out.println("[SubjectImpl] Observer removido: " + username);
         }
     }
+
     @Override
     public void notifyObservers(String message) throws RemoteException {
         if (FileManager.MODO_PROPAGACAO.equalsIgnoreCase("rmiserver")) {

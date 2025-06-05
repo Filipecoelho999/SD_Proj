@@ -1,7 +1,10 @@
 package edu.ufp.inf.sd.rmi.drive.util;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+// Classe singleton responsável por gerir bloqueios (locks) em ficheiros e pastas.
+// Garante acesso exclusivo a recursos partilhados para evitar conflitos entre utilizadores concorrentes.
+// Usado pelo FileManager para verificar se um utilizador pode modificar um ficheiro/pasta.
 
 public class LockManager {
 

@@ -1,8 +1,4 @@
 package edu.ufp.inf.sd.rmi.drive.server;
-
-import edu.ufp.inf.sd.rmi.drive.server.AuthImpl;
-import edu.ufp.inf.sd.rmi.drive.server.AuthRI;
-
 import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;

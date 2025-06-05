@@ -1,9 +1,13 @@
 package edu.ufp.inf.sd.rmi.drive.server;
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.Comparator;
 import java.util.List;
+
+// Classe utilitária para sincronizar alterações de ficheiros e pastas partilhadas entre utilizadores.
+// Responsável por propagar cópias e mudanças entre pastas partilhadas no servidor e entre utilizadores.
+// É chamada pelo FileManager para garantir consistência quando há alterações em pastas partilhadas.
+
 
 public class SharedSyncManager {
 
@@ -19,7 +23,7 @@ public class SharedSyncManager {
     }
 
     public static void propagateChange(Path updatedPath, String relativeToSharedRoot, String ownerUsername, List<String> receivers) throws IOException {
-        if (receivers == null || receivers.isEmpty()) return; // ✅ prevenir sincronização prematura
+        if (receivers == null || receivers.isEmpty()) return; //  prevenir sincronização prematura
 
         Path basePath = updatedPath;
 
@@ -35,7 +39,7 @@ public class SharedSyncManager {
     }
 
     public static void propagateMove(Path oldPath, Path newPath, String relativeToSharedRoot, String ownerUsername, List<String> receivers) throws IOException {
-        if (receivers == null || receivers.isEmpty()) return; // ✅ evitar movimentos desnecessários
+        if (receivers == null || receivers.isEmpty()) return; // evitar movimentos desnecessários
 
         for (String receiverUsername : receivers) {
             Path oldReceiverPath = Paths.get("server_files", receiverUsername, "shared_" + ownerUsername + "_" + relativeToSharedRoot);

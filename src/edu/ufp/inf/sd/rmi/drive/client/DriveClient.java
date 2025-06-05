@@ -1,12 +1,9 @@
 package edu.ufp.inf.sd.rmi.drive.client;
-
-import edu.ufp.inf.sd.rmi.drive.rabbitmq.Consumer;
 import edu.ufp.inf.sd.rmi.drive.server.AuthRI;
 import edu.ufp.inf.sd.rmi.drive.server.FileManagerRI;
 import edu.ufp.inf.sd.rmi.drive.server.ObserverRI;
 import edu.ufp.inf.sd.rmi.drive.session.Session;
 import edu.ufp.inf.sd.rmi.drive.session.SessionFactory;
-
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -14,6 +11,10 @@ import java.util.List;
 import java.util.Scanner;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+// Classe principal do cliente. Responsável pela interface de linha de comandos (CLI) do utilizador.
+// Permite registar, fazer login, navegar pelo sistema de ficheiros, partilhar, e executar comandos.
+// Usa AuthRI, FileManagerRI e SessionFactory para gerir o estado do utilizador.
 
 public class DriveClient {
 

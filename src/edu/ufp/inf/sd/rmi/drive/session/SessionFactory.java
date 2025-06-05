@@ -1,8 +1,10 @@
 package edu.ufp.inf.sd.rmi.drive.session;
-
 import edu.ufp.inf.sd.rmi.drive.server.SubjectRI;
-
 import java.util.concurrent.ConcurrentHashMap;
+
+// Classe singleton para criar, guardar e remover sessões dos utilizadores.
+// Permite verificar se um utilizador está autenticado e obter a sua sessão ativa.
+// Usado pelo AuthImpl no momento do login e pelo cliente (DriveClient) para verificar sessão atual.
 
 public class SessionFactory {
     private static final ConcurrentHashMap<String, Session> sessions = new ConcurrentHashMap<>();

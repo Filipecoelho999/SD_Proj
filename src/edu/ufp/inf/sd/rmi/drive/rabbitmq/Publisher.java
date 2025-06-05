@@ -1,10 +1,12 @@
-
 package edu.ufp.inf.sd.rmi.drive.rabbitmq;
-
 import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+
+// Publicador RabbitMQ. Envia mensagens para o exchange "drive_updates" sempre que ocorre uma alteração no sistema.
+// Responsável por informar todos os consumidores ligados (clientes) de alterações em tempo real.
+// Usado principalmente pelo FileManager e SharedSyncManager.
 
 public class Publisher {
     private final static String EXCHANGE_NAME = "drive_updates";
