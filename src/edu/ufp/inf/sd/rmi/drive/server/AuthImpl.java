@@ -1,5 +1,9 @@
 package edu.ufp.inf.sd.rmi.drive.server;
 import edu.ufp.inf.sd.rmi.drive.session.SessionFactory;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
@@ -22,9 +26,39 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
     @Override
     public boolean register(String username, String password) throws RemoteException {
         if (users.containsKey(username)) return false;
+
         users.put(username, password);
         drives.put(username, new FileManager(username, this));
         partilhasRecebidas.put(username, new HashMap<>());
+
+        try {
+            // Criar estrutura para o novo utilizador assumindo que Clients/ e Server/ já existem
+            Path clientBase = Paths.get("Clients");
+            Path serverBase = Paths.get("Server");
+
+            if (!Files.exists(clientBase) || !Files.exists(serverBase)) {
+                System.err.println("As pastas 'Clients/' e 'Server/' devem existir antes do registo de utilizadores.");
+                return false;
+            }
+
+            Path clientUserPath = clientBase.resolve(username);
+            Path clientLocal = clientUserPath.resolve(username + "_local");
+            Path clientShared = clientUserPath.resolve("shared");
+            Path serverUserLocal = serverBase.resolve(username + "_local");
+
+            Files.createDirectories(clientLocal);
+            Files.createDirectories(clientShared);
+            Files.createDirectories(serverUserLocal);
+
+            System.out.println("Estrutura criada para o utilizador: " + username);
+            System.out.println(" -> Clients/" + username + "/" + username + "_local/");
+            System.out.println(" -> Clients/" + username + "/shared/");
+            System.out.println(" -> Server/" + username + "_local/");
+        } catch (IOException e) {
+            System.err.println("Erro ao criar estrutura de pastas para " + username + ": " + e.getMessage());
+            return false;
+        }
+
         System.out.println("Utilizador registado: " + username);
         return true;
     }
@@ -73,8 +107,12 @@ public class AuthImpl extends UnicastRemoteObject implements AuthRI {
 
     public boolean temPermissaoEscrita(String username, String pasta) {
         if (!partilhasRecebidas.containsKey(username)) return false;
-        String valor = partilhasRecebidas.get(username).get(pasta);
+
+        String pastaRaiz = pasta.contains("/") ? pasta.substring(0, pasta.indexOf("/")) : pasta;
+        String valor = partilhasRecebidas.get(username).get(pastaRaiz);
+
         if (valor == null || !valor.contains(":")) return false;
+
         String[] parts = valor.split(":");
         return parts.length == 2 && parts[1].equalsIgnoreCase("write");
     }
