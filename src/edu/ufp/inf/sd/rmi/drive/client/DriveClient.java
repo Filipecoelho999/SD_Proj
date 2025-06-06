@@ -172,12 +172,20 @@ public class DriveClient {
                             System.out.println("Uso: entershared <utilizador>");
                         } else {
                             ownerUsername = parts[1];
+
+                            // Tentar entrar na partilha
                             fileManager.enterShared(ownerUsername);
-                            if (!pastasPartilhadas.isEmpty()) {
-                                currentFolder = "shared_" + ownerUsername + "_" + pastasPartilhadas.get(0);
-                                System.out.println(" Não tens nenhuma partilha ativa com " + ownerUsername);
+
+                            // Obter lista atualizada de partilhas
+                            pastasPartilhadas = fileManager.getSharedWithMe(username);
+
+                            if (pastasPartilhadas == null || pastasPartilhadas.isEmpty()) {
+                                System.out.println("Não tens nenhuma partilha ativa com " + ownerUsername);
                                 return;
-                            }                            pastasPartilhadas = fileManager.getSharedWithMe(username);
+                            }
+
+                            // Entrar na primeira partilha disponível
+                            currentFolder = "shared_" + ownerUsername + "_" + pastasPartilhadas.get(0);
                             inShared = true;
                             System.out.println("Entrou na partilha de " + ownerUsername);
                         }
